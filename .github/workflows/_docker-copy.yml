@@ -8,12 +8,19 @@ on:
         type: string
       version:
         required: true
-        type: string      
+        type: string
+      workflow_id:
+        required: true
+        type: string
+      
 
 jobs:
   copy:
     environment: ${{inputs.environment}}
     runs-on: ubuntu-latest
+    env:
+      REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
+      IMAGE_NAME: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.AWS_REPOSITORY }}    
     steps:
       -
         name: Checkout
@@ -34,10 +41,13 @@ jobs:
         name: Login to dev ECR
         uses: docker/login-action@v3
         with:
-          registry: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
+          registry: ${{ env.REGISTRY }}
       -
         name: Copy
+        env:
+          VERSION: ${{ inputs.version }}
+          WORKFLOW_ID: ${{ inputs.workflow_id }}
         run: |
           docker buildx imagetools create \
-            --tag ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.AWS_REPOSITORY }}:${{ inputs.version }}_stable \
-            ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.AWS_REPOSITORY }}:${{ inputs.version }}_b${{ github.run_id }}
+            --tag ${IMAGE_NAME}:${VERSION}_stable \
+            ${IMAGE_NAME}:${VERSION}_b${WORKFLOW_ID}
