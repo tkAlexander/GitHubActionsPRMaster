@@ -18,14 +18,21 @@ jobs:
     outputs:
       matrix: ${{ steps.set-versions.outputs.versions }}    
     steps:
+      - name: 'Debug'
+        uses: actions/github-script@v7     
+        with:
+          script: |
+            // Get the JSON webhook payload for the event that triggered the workflow
+            const payload = JSON.stringify(context.payload, undefined, 2)
+            console.log(`The event payload: ${payload}`);
       - name: 'Download artifact'
-        uses: actions/github-script@v6      
+        uses: actions/github-script@v7  
         with:
           script: |
             let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
                owner: context.repo.owner,
                repo: context.repo.repo,
-               run_id: context.inputs.workflow_id,
+               run_id: context.payload.inputs.workflow_id,
             });
             let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
               return artifact.name == "versions"
@@ -41,24 +48,24 @@ jobs:
 
       - name: 'Unzip artifact'
         run: unzip versions.zip
-        
+
       - name: Get updated versions
         id: set-versions
         run: |
           versions=$(<./versions)
           echo "versions=$versions" >> $GITHUB_OUTPUT
    
-  deploy-production:
-    needs: download
-    if: ${{ needs.download.outputs.versions != '[]' && needs.download.outputs.versions != '' }}
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        version: ${{ fromJson(needs.download.outputs.versions) }}
-    
-    uses: ./.github/workflows/_docker-copy.yml
-    with:
-      environment: production
-      version: ${{ matrix.version }}
-      push: true
+#  deploy-production:
+#    needs: download
+#    if: ${{ needs.download.outputs.versions != '[]' && needs.download.outputs.versions != '' }}
+#    strategy:
+#      fail-fast: false
+#      max-parallel: 2
+#      matrix:
+#        version: ${{ fromJson(needs.download.outputs.versions) }}
+#    
+#    uses: ./.github/workflows/_docker-copy.yml
+#    with:
+#      environment: production
+#      version: ${{ matrix.version }}
+#      push: true
