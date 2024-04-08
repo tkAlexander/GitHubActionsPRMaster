@@ -16,7 +16,7 @@ jobs:
   download:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-versions.outputs.versions }}    
+      versions: ${{ steps.set-versions.outputs.versions }}    
     steps:
       - name: 'Debug'
         uses: actions/github-script@v7     
