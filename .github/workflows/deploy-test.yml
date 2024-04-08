@@ -1,0 +1,47 @@
+name: Deploy test
+  
+permissions:
+  id-token: write
+  contents: read
+
+on:
+  push:
+    branches:
+      - 'master'
+  workflow_dispatch:
+
+jobs:
+  list-versions:
+    uses: ./.github/workflows/_list-versions.yml
+
+  upload-versions:
+    needs: list-versions
+    if: ${{ needs.list-versions.outputs.versions != '[]' && needs.list-versions.outputs.versions != '' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Save versions
+        env:
+          VERSIONS: ${{ needs.list-versions.outputs.versions }}
+        run: |
+          mkdir -p ./build
+          echo $VERSIONS > ./build/versions
+      - uses: actions/upload-artifact@v4
+        with:
+          name: versions
+          path: build/
+   
+  deploy-test:
+    needs: list-versions
+    if: ${{ needs.list-versions.outputs.versions != '[]' && needs.list-versions.outputs.versions != '' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        version: ${{ fromJson(needs.list-versions.outputs.versions) }}
+    
+    uses: ./.github/workflows/_docker-build.yml
+    with:
+      environment: test
+      version: ${{ matrix.version }}
+      push: true

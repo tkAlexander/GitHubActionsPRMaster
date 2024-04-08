@@ -1,0 +1,64 @@
+name: Deploy production
+  
+permissions:
+  id-token: write
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      workflow_id:
+        description: 'Workflow ID'
+        required: true
+        type: string
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-versions.outputs.versions }}    
+    steps:
+      - name: 'Download artifact'
+        uses: actions/github-script@v6      
+        with:
+          script: |
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: context.inputs.workflow_id,
+            });
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "versions"
+            })[0];
+            let download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            let fs = require('fs');
+            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/versions.zip`, Buffer.from(download.data));
+
+      - name: 'Unzip artifact'
+        run: unzip versions.zip
+        
+      - name: Get updated versions
+        id: set-versions
+        run: |
+          versions=$(<./versions)
+          echo "versions=$versions" >> $GITHUB_OUTPUT
+   
+  deploy-test:
+    needs: download
+    if: ${{ needs.download.outputs.versions != '[]' && needs.download.outputs.versions != '' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        version: ${{ fromJson(needs.list-versions.outputs.versions) }}
+    
+    uses: ./.github/workflows/_docker-build.yml
+    with:
+      environment: production
+      version: ${{ matrix.version }}
+      push: true
