@@ -48,16 +48,16 @@ jobs:
           versions=$(<./versions)
           echo "versions=$versions" >> $GITHUB_OUTPUT
    
-  deploy-test:
+  deploy-production:
     needs: download
     if: ${{ needs.download.outputs.versions != '[]' && needs.download.outputs.versions != '' }}
     strategy:
       fail-fast: false
       max-parallel: 2
       matrix:
-        version: ${{ fromJson(needs.list-versions.outputs.versions) }}
+        version: ${{ fromJson(needs.download.outputs.versions) }}
     
-    uses: ./.github/workflows/_docker-build.yml
+    uses: ./.github/workflows/_docker-copy.yml
     with:
       environment: production
       version: ${{ matrix.version }}
